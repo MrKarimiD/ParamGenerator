@@ -62,6 +62,7 @@ void MainWindow::on_pushButton_clicked()
     bool sporadicModelBuilding;
     QStringList numOfIterations;
     QList<EvalType> evaluationTypes;
+    QList<ClusteringType> clusteringTypes;
 
     if( multiModelsIsSelected )
     {
@@ -76,6 +77,11 @@ void MainWindow::on_pushButton_clicked()
             numOfModels.append(9);
         if(ui->N11_checkBox->isChecked())
             numOfModels.append(11);
+
+        if(ui->Kmeans_checkBox->isChecked())
+            clusteringTypes.append(Kmeans);
+        if(ui->Random_checkBox->isChecked())
+            clusteringTypes.append(Random);
 
         sporadicModelBuilding = ui->sporadic_checkBox->isChecked();
 
@@ -98,6 +104,7 @@ void MainWindow::on_pushButton_clicked()
         numOfModels.append(1);
         sporadicModelBuilding = false;
         numOfIterations.append("1");
+        clusteringTypes.append(Random);
         evaluationTypes.append(SinglePop);
     }
 
@@ -107,42 +114,49 @@ void MainWindow::on_pushButton_clicked()
     if(ui->RTR_checkBox->isChecked())
         replacementTypes.append(RTR);
 
+    QStringList fileNames;
+
     for(int probID = 0; probID < problems.size(); probID++)
     {
         for(int sizeID = 0; sizeID < sizes.size(); sizeID++)
         {
             for(int modelID = 0; modelID < numOfModels.size(); modelID++)
             {
-                for(int iterID = 0; iterID < numOfIterations.size(); iterID++)
+                for(int clusterID = 0; clusterID < clusteringTypes.size(); clusterID++)
                 {
-                    for(int evalID = 0; evalID < evaluationTypes.size(); evalID++)
+                    for(int iterID = 0; iterID < numOfIterations.size(); iterID++)
                     {
-                        for(int repID = 0; repID < replacementTypes.size(); repID++)
+                        for(int evalID = 0; evalID < evaluationTypes.size(); evalID++)
                         {
-                            fileGeneration(problems.value(probID),sizes.value(sizeID),ui->mulitModel_radioButton->isChecked(),numOfModels.value(modelID),
-                                           ui->sporadic_checkBox->isChecked(),numOfIterations.value(iterID),evaluationTypes.value(evalID),
-                                           replacementTypes.value(repID));
+                            for(int repID = 0; repID < replacementTypes.size(); repID++)
+                            {
+                                fileNames.append(fileGeneration(problems.value(probID),sizes.value(sizeID),ui->mulitModel_radioButton->isChecked(),numOfModels.value(modelID),
+                                               ui->sporadic_checkBox->isChecked(),numOfIterations.value(iterID),clusteringTypes.value(clusterID),evaluationTypes.value(evalID),
+                                               replacementTypes.value(repID)));
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    batchFileGenerator(fileNames);
 }
 
-void MainWindow::fileGeneration(QString problem, int size, bool multiModel, int numModel, bool sporadic, QString numIteration,
-                                EvalType et, ReplacementType rt)
+QString MainWindow::fileGeneration(QString problem, int size, bool multiModel, int numModel, bool sporadic, QString numIteration,
+                                ClusteringType ct, EvalType et, ReplacementType rt)
 {
     if( problem == "MSP1-3" || problem == "MSP1-5")
         size++;
 
-    QString fileName = nameGenerator(problem,size,multiModel,numModel,sporadic,numIteration,et,rt);
+    QString fileName = nameGenerator(problem,size,multiModel,numModel,sporadic,numIteration,ct,et,rt);
     QString outputName = fileName;
     fileName.append(".param");
     qDebug()<<fileName;
     QFile file(fileName);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
-        return;
+        return "NOTACCPETED";
 
     QTextStream out(&file);
     out << "fitnessFunction = " << functionNumber(problem) << "\n";
@@ -158,6 +172,12 @@ void MainWindow::fileGeneration(QString problem, int size, bool multiModel, int 
     out << "useMultiThreading = " << 1 << "\n";
     out << "numberOfModels = " << numModel << "\n";
     out << "impactOfModels = " << 0 << "\n";
+    int clusteringMethod;
+    if(ct == Kmeans )
+        clusteringMethod = 1;
+    else
+        clusteringMethod = 0;
+    out << "clusteringMethod = " << clusteringMethod << "\n";
     int parentDisplacement = (multiModel)? 1:0;
     out << "parentDisplacement = " << parentDisplacement << "\n";
     int EvaluationtMethod;
@@ -195,10 +215,12 @@ void MainWindow::fileGeneration(QString problem, int size, bool multiModel, int 
 
     out << "outputFile = " << outputName << "\n";
     file.close();
+
+    return fileName;
 }
 
 QString MainWindow::nameGenerator(QString problem, int size, bool multiModel, int numModel, bool sporadic, QString numIteration,
-                                  EvalType et, ReplacementType rt)
+                                  ClusteringType ct, EvalType et, ReplacementType rt)
 {
     QString output = problem;
     output.append("-");
@@ -224,6 +246,9 @@ QString MainWindow::nameGenerator(QString problem, int size, bool multiModel, in
             output.append("-");
         }
 
+        if( ct == Kmeans )
+            output.append("Kmeans-");
+
         if( et == SinglePop)
             output.append("SinglePop");
         else
@@ -234,6 +259,27 @@ QString MainWindow::nameGenerator(QString problem, int size, bool multiModel, in
         output.append("-RTR");
 
     return output;
+}
+
+void MainWindow::batchFileGenerator(QStringList slist)
+{
+    QFile file("runfile.bat");
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+    {
+        qDebug()<<"ERROR! runFile cannot be created!!";
+        return;
+    }
+
+    QTextStream out(&file);
+    out << "cd \"results\"\n\n";
+    for(int it = 0; it < slist.size(); it++)
+    {
+        if(slist.value(it) != "NOTACCPETED")
+            out<<"call ..\\Driver.exe ..\\"<<slist.value(it)<<"\n";
+    }
+    out<<"\n";
+    out<<"exit";
+    file.close();
 }
 
 int MainWindow::functionNumber(QString name)

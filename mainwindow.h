@@ -18,6 +18,11 @@ enum EvalType
     SinglePop,
     MultiPop
 };
+enum ClusteringType
+{
+    Random,
+    Kmeans
+};
 
 namespace Ui {
 class MainWindow;
@@ -41,8 +46,9 @@ private slots:
 private:
     Ui::MainWindow *ui;
 
-    void fileGeneration(QString problem, int size, bool multiModel, int numModel, bool sporadic, QString numIteration,EvalType et, ReplacementType rt);
-    QString nameGenerator(QString problem, int size, bool multiModel, int numModel, bool sporadic, QString numIteration, EvalType et, ReplacementType rt);
+    QString fileGeneration(QString problem, int size, bool multiModel, int numModel, bool sporadic, QString numIteration, ClusteringType ct, EvalType et, ReplacementType rt);
+    QString nameGenerator(QString problem, int size, bool multiModel, int numModel, bool sporadic, QString numIteration, ClusteringType ct, EvalType et, ReplacementType rt);
+    void batchFileGenerator(QStringList slist);
     int functionNumber(QString name);
 };
 
